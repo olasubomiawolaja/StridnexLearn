@@ -42,25 +42,22 @@ export default function ProfileForm({
 
     if (!currentUser) return;
 
-    const { error } = await supabase
-      .from("profiles")
-      .upsert({
+    const [{ error }] = await Promise.all([
+      supabase.from("profiles").upsert({
         id: currentUser.id,
         full_name: fullName,
         nickname,
         bio,
         avatar_url: avatarUrl,
-      });
+      }),
+      supabase.auth.updateUser({ data: { full_name: fullName } }),
+    ]);
 
     if (error) {
       showToast("error", error.message);
       setLoading(false);
       return;
     }
-
-    await supabase.auth.updateUser({
-      data: { full_name: fullName },
-    });
 
     showToast("success", "Profile updated!");
     setLoading(false);
