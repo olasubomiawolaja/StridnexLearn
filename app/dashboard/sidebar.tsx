@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase";
 type SidebarProps = {
   userName: string;
   userEmail: string;
+  avatarUrl: string;
   isOpen: boolean;
   onClose: () => void;
 };
@@ -65,7 +66,7 @@ function DropdownSection({
   );
 }
 
-export default function Sidebar({ userName, userEmail, isOpen, onClose }: SidebarProps) {
+export default function Sidebar({ userName, userEmail, avatarUrl, isOpen, onClose }: SidebarProps) {
   const [showProfile, setShowProfile] = useState(false);
   const router = useRouter();
 
@@ -149,14 +150,26 @@ export default function Sidebar({ userName, userEmail, isOpen, onClose }: Sideba
           onClick={() => setShowProfile(!showProfile)}
           className="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-gray-50"
         >
-          <div className="w-8 h-8 rounded-full bg-gray-900 flex items-center justify-center text-xs font-semibold text-white shrink-0">
-            {userName
-              .split(" ")
-              .map((n) => n[0])
-              .join("")
-              .toUpperCase()
-              .slice(0, 2)}
+          
+          <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-900 shrink-0 flex items-center justify-center">
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt="Avatar"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span className="text-xs font-semibold text-white">
+                {userName
+                  .split(" ")
+                  .map((n) => n[0])
+                  .join("")
+                  .toUpperCase()
+                  .slice(0, 2)}
+              </span>
+            )}
           </div>
+
           <div className="text-left min-w-0">
             <p className="text-sm font-medium text-gray-900 truncate">
               {userName}
@@ -170,12 +183,13 @@ export default function Sidebar({ userName, userEmail, isOpen, onClose }: Sideba
             <button
               onClick={() => {
                 setShowProfile(false);
-                // Profile settings — will be built later
+                router.push("/dashboard/profile");
               }}
               className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
             >
-              Settings
+              Profile Settings
             </button>
+            
             <button
               onClick={handleLogout}
               className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 border-t border-gray-100"

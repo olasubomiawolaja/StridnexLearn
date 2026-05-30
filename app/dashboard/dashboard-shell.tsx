@@ -6,12 +6,14 @@ import Sidebar from "./sidebar";
 type DashboardShellProps = {
   userName: string;
   userEmail: string;
+  avatarUrl: string;
   children: React.ReactNode;
 };
 
 export default function DashboardShell({
   userName,
   userEmail,
+  avatarUrl,
   children,
 }: DashboardShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -21,6 +23,7 @@ export default function DashboardShell({
       <Sidebar
         userName={userName}
         userEmail={userEmail}
+        avatarUrl={avatarUrl}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />

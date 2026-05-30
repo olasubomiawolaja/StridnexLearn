@@ -16,12 +16,34 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  const userName = user.user_metadata?.full_name || "Student";
+ //to fetch profile from database
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", user.id)
+    .single();
+
+  console.log(profile);
+
+  const userName =
+    profile?.full_name ||
+    user.user_metadata?.full_name ||
+    "Student";
+
   const userEmail = user.email || "";
+  const avatarUrl = profile?.avatar_url || "";
 
   return (
-    <DashboardShell userName={userName} userEmail={userEmail}>
+    <DashboardShell
+      userName={userName}
+      userEmail={userEmail}
+      avatarUrl={avatarUrl}
+    >
       {children}
     </DashboardShell>
   );
 }
+
+
+
+
