@@ -1,5 +1,9 @@
 export async function POST(request: Request) {
-  const { messages } = await request.json();
+  const { messages, systemPrompt } = await request.json();
+
+  const apiMessages = systemPrompt
+    ? [{ role: "system", content: systemPrompt }, ...messages]
+    : messages;
 
   const response = await fetch(
     "https://api.groq.com/openai/v1/chat/completions",
@@ -11,7 +15,7 @@ export async function POST(request: Request) {
       },
       body: JSON.stringify({
         model: "llama-3.1-8b-instant",
-        messages,
+        messages: apiMessages,
         stream: true,
       }),
     }

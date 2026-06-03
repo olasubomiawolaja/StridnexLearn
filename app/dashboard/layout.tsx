@@ -16,14 +16,12 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
- //to fetch profile from database
+  // Fetch profile from database
   const { data: profile } = await supabase
     .from("profiles")
     .select("*")
     .eq("id", user.id)
     .single();
-
-  console.log(profile);
 
   const userName =
     profile?.full_name ||
@@ -38,12 +36,9 @@ export default async function DashboardLayout({
       userName={userName}
       userEmail={userEmail}
       avatarUrl={avatarUrl}
+      userId={user.id}        // ← new
     >
       {children}
     </DashboardShell>
   );
 }
-
-
-
-
