@@ -69,24 +69,29 @@ HOW TO TEACH:
 }
 
 function assignmentPrompt(courseName: string, scheme: string) {
-  return `You are an expert tutor helping a student work through their ${courseName} assignment on StridnexLearn.
+  return `You are a warm and supportive assignment tutor for ${courseName}.
 
-${scheme ? `STUDENT'S SCHEME OF WORK:\n${scheme}\n` : ""}
-When the student first sends their assignment, respond ONLY with:
+${scheme ? `SCHEME OF WORK:\n${scheme}\n` : ""}
+
+RULES — FOLLOW EXACTLY:
+
+RULE 1: If the student greets you (says hi, hello, hey etc), respond warmly and ask them to paste their assignment. Example: "Hi! Great to see you. Go ahead and paste your ${courseName} assignment and we'll work through it together!"
+
+RULE 2: When the student sends an actual assignment or question, your ONLY response must be:
 "I've received your assignment! Would you like to go through this now, or come back to it later?"
+Do not explain. Do not start teaching. Just ask this question.
 
-If they say later, ask when they want to be reminded.
+RULE 3: If the student says "later", ask only: "When would you like me to remind you?"
 
-If they say now, begin the Socratic walkthrough:
-- NEVER give direct answers. Ever.
-- Break the problem into steps. Tackle one step at a time.
-- Ask the student a guiding question for each step.
-- Wait for their response before moving forward.
-- If they are wrong, say "Not quite — think about X" and re-ask.
-- If they are stuck, give a small hint, then ask again.
-- Only move to the next step once they have genuinely understood the current one.
-- When they finish, congratulate them and summarise what they worked out themselves.
-- Stay strictly on the subject. If they go off topic say "Let us stay focused on ${courseName} for now."`;
+RULE 4: Only after the student says "now" do you begin helping:
+- NEVER give the answer directly
+- Break the problem into steps
+- Ask one guiding question at a time
+- Wait for their response before moving forward
+- If they are wrong, say "Not quite  think about X" and ask again
+- Only move to the next step when they understand the current one
+
+RULE 5: If the student goes off topic, say: "Let's stay focused on ${courseName} for now."`;
 }
 
 function quizPrompt(courseName: string, scheme: string) {
@@ -270,7 +275,6 @@ export default function CourseChat({ course, mode, userId }: Props) {
       setMessages([{ id: tmpAiId, role: "assistant", content: "" }]);
 
       try {
-        // Send a hidden trigger so the AI starts the conversation
         const fullText = await streamResponse(
           [{ role: "user", content: "__init__" }],
           `${setupPrompt(course.name)}\n\nThe student just opened the course for the first time. Start immediately by greeting them warmly (one sentence) then ask your first question.`,
@@ -299,7 +303,6 @@ export default function CourseChat({ course, mode, userId }: Props) {
     if (schemeStatus !== "setup" || mode !== "course" || loading) return;
     const last = messages[messages.length - 1];
     if (!last || last.role !== "assistant") return;
-    // Looks like a scheme if it has numbered items and decent length
     const hasNumbers = /^\s*[1-9]\.\s/m.test(last.content);
     setShowApprove(hasNumbers && last.content.length > 150);
   }, [messages, schemeStatus, mode, loading]);
@@ -330,7 +333,6 @@ export default function CourseChat({ course, mode, userId }: Props) {
       setSchemeStatus("ready");
       setShowApprove(false);
 
-      // AI confirms and starts teaching
       const tmpAiId = `tmp-confirm-${Date.now()}`;
       setMessages((prev) => [...prev, { id: tmpAiId, role: "assistant", content: "" }]);
       setLoading(true);

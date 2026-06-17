@@ -1,6 +1,5 @@
 "use client";
 
-import { buildSocraticPrompt } from "@/lib/prompt/assignment_prompt";
 import { useState, useRef, useEffect } from "react";
 
 type Message = {
@@ -41,10 +40,7 @@ export default function ChatArea({ greeting, firstName, mode, courseName }: Chat
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: history,
-          systemPrompt:
-            mode === "assignment" && courseName
-              ? buildSocraticPrompt(courseName, input.trim())
-              : undefined,
+          
         }),
       });
 
