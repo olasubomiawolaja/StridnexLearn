@@ -55,11 +55,13 @@ function AddCourseModal({
   onAdd,
 }: {
   onClose: () => void;
-  onAdd: (name: string, description: string) => Promise<void>;
+  // Returns an error string on failure, null on success
+  onAdd: (name: string, description: string) => Promise<string | null>;
 }) {
-  const [name, setName]           = useState("");
-  const [description, setDesc]    = useState("");
-  const [saving, setSaving]       = useState(false);
+  const [name, setName]       = useState("");
+  const [description, setDesc] = useState("");
+  const [saving, setSaving]   = useState(false);
+  const [error, setError]     = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { inputRef.current?.focus(); }, []);
@@ -67,9 +69,16 @@ function AddCourseModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
+    setError("");
     setSaving(true);
-    await onAdd(name.trim(), description.trim());
+    const err = await onAdd(name.trim(), description.trim());
     setSaving(false);
+    if (err) {
+      // Stay open and show the error inside the modal
+      setError(err);
+      return;
+    }
+    // Only close when the course was actually created
     onClose();
   };
 
@@ -94,10 +103,22 @@ function AddCourseModal({
               ref={inputRef}
               type="text"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => { setName(e.target.value); setError(""); }}
               placeholder="e.g. Physics, Mathematics, Biology"
-              className="w-full px-3.5 py-2.5 border border-[#c8c5d0]/60 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#4e45d5] focus:border-transparent placeholder:text-[#787680]"
+              className={`w-full px-3.5 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#4e45d5] focus:border-transparent placeholder:text-[#787680] transition-colors ${
+                error ? "border-red-400 bg-red-50" : "border-[#c8c5d0]/60"
+              }`}
             />
+            {/* Inline error — shown right under the input for immediate feedback */}
+            {error && (
+              <p className="mt-1.5 flex items-center gap-1.5 text-xs text-red-600">
+                <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                </svg>
+                {error}
+              </p>
+            )}
           </div>
 
           <div>
@@ -157,8 +178,8 @@ function DropdownSection({
   onAddCourse?: () => void;
   onDeleteCourse?: (id: string) => Promise<void>;
 }) {
-  const [open, setOpen]               = useState(false);
-  const [menuOpenId, setMenuOpenId]   = useState<string | null>(null);
+  const [open, setOpen]             = useState(false);
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close context menu on outside click
@@ -292,12 +313,12 @@ export default function Sidebar({
   activeCourseId,
   activeMode,
 }: SidebarProps) {
-  const [showProfile, setShowProfile]   = useState(false);
-  const [showModal, setShowModal]       = useState(false);
-  const [courses, setCourses]           = useState<Course[]>([]);
+  const [showProfile, setShowProfile]       = useState(false);
+  const [showModal, setShowModal]           = useState(false);
+  const [courses, setCourses]               = useState<Course[]>([]);
   const [loadingCourses, setLoadingCourses] = useState(true);
-  const [courseError, setCourseError] = useState("");
-  const router  = useRouter();
+  const [courseError, setCourseError]       = useState("");
+  const router   = useRouter();
   const supabase = useMemo(() => createClient(), []);
 
   // ── Load courses ───────────────────────────────────────
@@ -317,23 +338,41 @@ export default function Sidebar({
   }, [supabase]);
 
   // ── Add course ─────────────────────────────────────────
-  const handleAddCourse = async (name: string, description: string) => {
+  // Returns an error string on failure, null on success.
+  // The modal uses this return value to decide whether to close.
+  const handleAddCourse = async (
+    name: string,
+    description: string
+  ): Promise<string | null> => {
     setCourseError("");
+
+    // ── Duplicate check (case-insensitive, trimmed) ──────
+    // "Physics" == "physics" == "PHYSICS" → blocked
+    // "Physics" vs "Physics 101"          → allowed (different strings)
+    const isDuplicate = courses.some(
+      (c) => c.name.trim().toLowerCase() === name.trim().toLowerCase()
+    );
+    if (isDuplicate) {
+      return `Course "${name}" already exists.`;
+    }
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      setCourseError("You need to be signed in to create a course.");
-      return;
+      return "You need to be signed in to create a course.";
     }
+
     const { data, error } = await supabase
       .from("courses")
       .insert({ name, description, user_id: user.id })
       .select("id, name, description")
       .single();
+
     if (error) {
-      setCourseError(error.message);
-      return;
+      return error.message;
     }
+
     if (data) setCourses((prev) => [...prev, data]);
+    return null; // success
   };
 
   // ── Delete course ──────────────────────────────────────
@@ -347,7 +386,7 @@ export default function Sidebar({
     }
 
     setCourses((prev) => prev.filter((c) => c.id !== id));
-    // If the deleted course was active in course, assignment, or quiz, go back to home.
+    // If the deleted course was active, go back to home
     if (activeCourseId === id) onSelectCourse(null, "course");
   };
 
@@ -380,7 +419,6 @@ export default function Sidebar({
               className="p-1.5 rounded-lg hover:bg-[#e3dfff]/50 text-[#787680] hover:text-[#070235] transition-colors"
               title="Close sidebar"
             >
-              {/* Panel-left icon */}
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                   d="M4 6h16M4 12h7M4 18h16" />

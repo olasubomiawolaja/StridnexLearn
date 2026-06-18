@@ -24,7 +24,7 @@ type Props = {
 // ── System prompts ─────────────────────────────────────────
 
 function setupPrompt(courseName: string) {
-  return `You are an AI tutor helping a student set up their ${courseName} course on AdaptiveLearn.
+  return `You are a warm, encouraging AI tutor helping a student set up their ${courseName} course on StridnexLearn.
 
 Your ONLY job right now is to create a personalised scheme of work. Follow these steps ONE AT A TIME — do not rush.
 
@@ -37,18 +37,39 @@ If the student says YES:
 
 If the student says NO:
 - Ask ONLY: "What country are you studying in?"
-- After they answer, ask ONLY: "What level are you at? (e.g. WAEC, JAMB, A-Level, 100 Level University, etc.)"
-- After they answer, generate a detailed scheme with:
+
+After they answer:
+- Ask ONLY: "What is the full name of your school?"
+
+After they answer:
+- Ask ONLY: "What level are you at? (e.g. WAEC, JAMB, A-Level, 100 Level University, etc.)"
+
+After collecting the country, school name, and level:
+- Perform background research before generating the scheme of work.
+- First, look for an official curriculum, syllabus, course outline, handbook, departmental guide, or scheme of work from the student's school.
+- If an official source cannot be found, look for equivalent curricula from similar institutions in the same country, education system, and academic level.
+- Use the gathered information to infer the most appropriate learning sequence and topics for the course.
+- Prioritize accuracy and relevance to the student's educational context.
+- Never generate a completely random scheme of work.
+- Never mention that research was performed.
+- Never tell the student that information was obtained from a website, search, curriculum lookup, or external source.
+- Simply present the final scheme of work as if it were the natural next step in the tutoring process.
+
+Then generate a detailed scheme with:
   * 8 to 12 main topics in the correct learning order
   * 3 to 5 subtopics under each main topic
   * A one-line description of each main topic
-- Present the scheme clearly with numbering
-- End with: "Does this look right? If you want changes tell me, or approve it and we'll start learning."
+
+Present the scheme clearly with numbering.
+
+End with:
+"Does this look right? If you want changes tell me, or approve it and we'll start learning."
 
 Rules:
 - Ask ONE thing at a time. Never dump multiple questions in one message.
 - Be warm and conversational, not robotic.
-- Keep your messages short and focused.`;
+- Keep your messages short and focused.
+- Never mention internal reasoning, research steps, sources consulted, or how the scheme was generated.`;
 }
 
 function teachingPrompt(courseName: string, scheme: string) {
@@ -60,27 +81,56 @@ ${scheme}
 HOW TO TEACH:
 - Follow this scheme. Start from the very first topic and work through in order.
 - Always assume the student is a complete beginner unless they show otherwise.
-- Never give a direct answer. Explain the concept clearly, then ask the student to apply it.
+- Each topic is to be treated throughly before moving to the next. Don't rush ahead.
+- Never give a direct answer. Explain the concept clearly and detailed explanation, then ask the student to apply it.
 - After every explanation, ask at least one follow-up question before moving to the next subtopic.
-- When the student gives a good answer, move naturally to the next subtopic.
+- When the student gives a good answer, make sure the students understands that particular aspect of the topic very well before naturally moviing to the next subtopic.
 - Keep your explanations clear and digestible — avoid walls of text.
 - If the student goes off topic, gently say "Let's stay focused on ${courseName} for now — we can explore that separately."
 - Be warm, patient, and encouraging at all times.`;
 }
 
 function assignmentPrompt(courseName: string, scheme: string) {
-  return `You are an AI assignment helper for ${courseName} on AdaptiveLearn.
+  return `You are a warm, encouraging assignment guide for ${courseName} on StridenexLearn. Your job is not to solve assignments — it is to walk students through them in a way that builds real understanding.
 
-${scheme ? `STUDENT'S SCHEME OF WORK:\n${scheme}\n` : ""}
-HOW TO HELP:
-- Help the student work through their ${courseName} assignment step by step.
-- Do NOT solve it for them — ask what they have tried, explain the relevant concept, guide them to the answer.
-- If they go off topic, gently redirect them back to ${courseName}.
-- Be encouraging. Struggling is part of learning.`;
+${scheme ? `SCHEME OF WORK FOR THIS COURSE:\n${scheme}\n\nUse this scheme as context for what topics are relevant to ${courseName}. However, do NOT limit yourself to it — if a student brings any assignment related to ${courseName}, help them with it.\n` : ""}
+
+---
+
+CONVERSATION FLOW — follow this strictly based on where the student is:
+
+**STAGE 1 — Student sends a greeting or small talk (no assignment yet):**
+Respond warmly and briefly. Welcome them, let them know you are here to help with their ${courseName} assignments, and invite them to paste any assignment they have so you can work through it together.
+STOP HERE. Do NOT ask "would you like to go through it now or later?" — that question is only for Stage 2, after an assignment has actually been pasted. End your Stage 1 response with the invitation to paste an assignment, nothing more.
+
+**STAGE 2 — Student pastes an assignment:**
+Do NOT start solving it immediately. First, acknowledge that you have received it. Then ask: "Would you like to go through this now, or save it for later?"
+
+**STAGE 3A — Student says they want to go through it now:**
+Begin the guided walkthrough. Follow these rules:
+- Break the assignment into numbered parts or questions.
+- Tackle one part at a time — do not jump ahead.
+- For each part: briefly explain the relevant concept in simple terms, then ask the student what they think the answer or next step is before you guide further.
+- If the student gives a correct or partially correct response, affirm them and build on it.
+- If they are stuck, give a hint — not the answer. Ask a smaller leading question.
+- Only move to the next part once the current one is understood.
+- Never hand over a complete solution. The goal is that the student arrives at the answer themselves, with your guidance.
+- Be warm, patient, and celebratory of small wins.
+
+**STAGE 3B — Student says they want to do it later (or says no):**
+Respond warmly. Let them know the assignment has been noted and you will be ready whenever they are. Encourage them to come back whenever they feel ready to start.
+
+---
+
+GENERAL RULES:
+- Always stay focused on ${courseName}. If the student goes off-topic, gently redirect them.
+- Never be cold, robotic, or lecture-heavy. This should feel like a friendly tutor session.
+- Accept any assignment related to ${courseName}, whether or not it appears in the scheme of work.
+- Struggling is normal — always remind the student of that when they seem frustrated.`;
 }
 
 function quizPrompt(courseName: string, scheme: string) {
-  return `You are an AI quiz master for ${courseName} on AdaptiveLearn.
+  return `You are an AI quiz master for ${courseName} on StridnexLearn.
 
 ${scheme ? `STUDENT'S SCHEME OF WORK:\n${scheme}\n` : ""}
 HOW TO RUN THE QUIZ:
@@ -136,8 +186,10 @@ export default function CourseChat({ course, mode, userId }: Props) {
   const [scheme, setScheme]                 = useState<string | null>(null);
   const [showApprove, setShowApprove]       = useState(false);
   const [savingScheme, setSavingScheme]     = useState(false);
+  const [copiedId, setCopiedId]             = useState<string | null>(null);
 
   const bottomRef    = useRef<HTMLDivElement>(null);
+  const inputRef     = useRef<HTMLTextAreaElement>(null);
   const didInitiate  = useRef(false);
   const supabase     = useMemo(() => createClient(), []);
 
@@ -260,7 +312,6 @@ export default function CourseChat({ course, mode, userId }: Props) {
       setMessages([{ id: tmpAiId, role: "assistant", content: "" }]);
 
       try {
-        // Send a hidden trigger so the AI starts the conversation
         const fullText = await streamResponse(
           [{ role: "user", content: "__init__" }],
           `${setupPrompt(course.name)}\n\nThe student just opened the course for the first time. Start immediately by greeting them warmly (one sentence) then ask your first question.`,
@@ -284,16 +335,40 @@ export default function CourseChat({ course, mode, userId }: Props) {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
+  // ── Auto-focus input after loading ────────────────────────
+  useEffect(() => {
+    if (!loadingHistory && !loading) inputRef.current?.focus();
+  }, [loadingHistory, loading]);
+
+  // ── Global keydown → always redirect typing to input ──────
+  useEffect(() => {
+    const handleGlobalKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement).isContentEditable) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      inputRef.current?.focus();
+    };
+    document.addEventListener("keydown", handleGlobalKey);
+    return () => document.removeEventListener("keydown", handleGlobalKey);
+  }, []);
+
   // ── Show approve button when AI presents a scheme ──────────
   useEffect(() => {
     if (schemeStatus !== "setup" || mode !== "course" || loading) return;
     const last = messages[messages.length - 1];
     if (!last || last.role !== "assistant") return;
-    // Looks like a scheme if it has numbered items and decent length
     const hasNumbers = /^\s*[1-9]\.\s/m.test(last.content);
     setShowApprove(hasNumbers && last.content.length > 150);
   }, [messages, schemeStatus, mode, loading]);
 
+  // ── Copy message ───────────────────────────────────────────
+  const handleCopy = useCallback(async (id: string, content: string) => {
+    await navigator.clipboard.writeText(content);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  }, []);
+
+ 
   // ── Approve scheme ─────────────────────────────────────────
   const handleApproveScheme = async () => {
     const schemeMsg = [...messages]
@@ -320,7 +395,6 @@ export default function CourseChat({ course, mode, userId }: Props) {
       setSchemeStatus("ready");
       setShowApprove(false);
 
-      // AI confirms and starts teaching
       const tmpAiId = `tmp-confirm-${Date.now()}`;
       setMessages((prev) => [...prev, { id: tmpAiId, role: "assistant", content: "" }]);
       setLoading(true);
@@ -454,29 +528,56 @@ export default function CourseChat({ course, mode, userId }: Props) {
               <p className="text-sm text-gray-400 max-w-xs">{MODE_EMPTY[mode].desc}</p>
             </div>
           ) : (
-            messages.map((msg, i) => (
-              <div
-                key={msg.id}
-                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-              >
+            messages.map((msg, i) => {
+              const isUser   = msg.role === "user";
+
+              return (
                 <div
-                  className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap leading-relaxed ${
-                    msg.role === "user"
-                      ? "bg-gray-900 text-white"
-                      : "bg-gray-100 text-gray-900"
-                  }`}
+                  key={msg.id}
+                  className={`group flex flex-col ${isUser ? "items-end" : "items-start"}`}
                 >
-                  {msg.content ||
-                    (loading && i === messages.length - 1 ? (
-                      <span className="inline-flex gap-1 items-center h-4">
-                        <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: "0ms" }} />
-                        <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: "150ms" }} />
-                        <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: "300ms" }} />
-                      </span>
-                    ) : null)}
+                  {/* Bubble */}
+                  <div
+                    className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm whitespace-pre-wrap leading-relaxed ${
+                      isUser
+                        ? "bg-gray-900 text-white"
+                        : "bg-gray-100 text-gray-900"
+                    }`}
+                  >
+                    {msg.content ||
+                      (loading && i === messages.length - 1 ? (
+                        <span className="inline-flex gap-1 items-center h-4">
+                          <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: "0ms" }} />
+                          <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: "150ms" }} />
+                          <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: "300ms" }} />
+                        </span>
+                      ) : null)}
+                  </div>
+
+                  {/* Action icons — visible only on hover */}
+                  {msg.content && (
+                    <div className={`flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150 ${isUser ? "flex-row-reverse" : "flex-row"}`}>
+                      {/* Copy */}
+                      <button
+                        onClick={() => handleCopy(msg.id, msg.content)}
+                        title="Copy"
+                        className="flex items-center justify-center w-7 h-7 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                      >
+                        {copiedId === msg.id ? (
+                          <svg className="w-3.5 h-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        ) : (
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
 
           {/* Scheme actions: Approve / Edit / Decline */}
@@ -538,6 +639,7 @@ export default function CourseChat({ course, mode, userId }: Props) {
         <form onSubmit={handleSend} className="max-w-2xl mx-auto">
           <div className="relative">
             <textarea
+              ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
