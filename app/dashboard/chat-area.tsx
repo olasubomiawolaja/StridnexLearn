@@ -10,9 +10,11 @@ type Message = {
 type ChatAreaProps = {
   greeting: string;
   firstName: string;
+  mode?: "course" | "assignment" | "quiz";
+  courseName?: string;
 };
 
-export default function ChatArea({ greeting, firstName }: ChatAreaProps) {
+export default function ChatArea({ greeting, firstName, mode, courseName }: ChatAreaProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -36,7 +38,10 @@ export default function ChatArea({ greeting, firstName }: ChatAreaProps) {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: history }),
+        body: JSON.stringify({
+          messages: history,
+          
+        }),
       });
 
       if (!response.ok || !response.body) throw new Error("Request failed");
@@ -68,7 +73,8 @@ export default function ChatArea({ greeting, firstName }: ChatAreaProps) {
           }
         }
       }
-    } catch {
+    } catch (err) {
+      console.error(err);
       setMessages([
         ...history,
         {
@@ -94,11 +100,7 @@ export default function ChatArea({ greeting, firstName }: ChatAreaProps) {
             </p>
           </div>
           <form onSubmit={handleSend} className="w-full max-w-2xl">
-            <ChatInput
-              input={input}
-              setInput={setInput}
-              loading={loading}
-            />
+            <ChatInput input={input} setInput={setInput} loading={loading} />
           </form>
         </div>
       ) : (
@@ -142,11 +144,7 @@ export default function ChatArea({ greeting, firstName }: ChatAreaProps) {
           </div>
           <div className="border-t border-gray-100 px-4 py-4">
             <form onSubmit={handleSend} className="max-w-2xl mx-auto">
-              <ChatInput
-                input={input}
-                setInput={setInput}
-                loading={loading}
-              />
+              <ChatInput input={input} setInput={setInput} loading={loading} />
             </form>
           </div>
         </>
