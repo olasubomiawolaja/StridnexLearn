@@ -14,6 +14,7 @@ type Message = {
 };
 
 type SchemeStatus = "loading" | "setup" | "ready";
+type TopicsStatus = "idle" | "loading" | "ready";
 
 type Props = {
   course: Course;
@@ -73,7 +74,7 @@ Rules:
 }
 
 function teachingPrompt(courseName: string, scheme: string) {
-  return `You are an adaptive AI tutor for ${courseName} on AdaptiveLearn.
+  return `You are an adaptive AI tutor for ${courseName} on Stridnexlearn.
 
 SCHEME OF WORK FOR THIS STUDENT:
 ${scheme}
@@ -91,7 +92,7 @@ HOW TO TEACH:
 }
 
 function assignmentPrompt(courseName: string, scheme: string) {
-  return `You are a warm, encouraging assignment guide for ${courseName} on StridenexLearn. Your job is not to solve assignments — it is to walk students through them in a way that builds real understanding.
+  return `You are a warm, encouraging assignment guide for ${courseName} on StridnexLearn. Your job is not to solve assignments — it is to walk students through them in a way that builds real understanding.
 
 ${scheme ? `SCHEME OF WORK FOR THIS COURSE:\n${scheme}\n\nUse this scheme as context for what topics are relevant to ${courseName}. However, do NOT limit yourself to it — if a student brings any assignment related to ${courseName}, help them with it.\n` : ""}
 
@@ -129,30 +130,63 @@ GENERAL RULES:
 - Struggling is normal — always remind the student of that when they seem frustrated.`;
 }
 
-function quizPrompt(courseName: string, scheme: string) {
+function quizPrompt(courseName: string, topicsCovered: string) {
   return `You are an AI quiz master for ${courseName} on StridnexLearn.
 
-${scheme ? `STUDENT'S SCHEME OF WORK:\n${scheme}\n` : ""}
+${topicsCovered ? `TOPICS THE STUDENT HAS ACTUALLY COVERED SO FAR (from their course and assignment sessions):\n${topicsCovered}\n` : ""}
 HOW TO RUN THE QUIZ:
-- Generate questions only from topics in the scheme above.
+- Generate questions only from the topics covered above — these reflect what has genuinely been taught or practiced, not a full syllabus.
+- Do not ask about anything outside this list, even if it seems like a natural next topic.
+- Unless the student says otherwise, default to multiple-choice questions, one at a time, with no fixed total.
 - Start at beginner level. Adapt difficulty based on how the student answers.
-- Ask ONE question at a time. Do not send the next question until the student has answered.
+- Ask ONE question at a time. Never send more than one question in a single message, no matter what format or how many were requested.
 - After each answer: say if it is correct or incorrect, explain why briefly, then move on.
 - Be encouraging — wrong answers are part of learning.
-- If nothing has been studied yet, tell the student to go through the course material first.`;
+- If nothing has been studied yet, tell the student to go through the course material first.
+
+QUESTION FORMATS AVAILABLE:
+- Multiple choice — a short stem with lettered options.
+- Theory / short answer — an open-ended question the student answers in their own words, no options given.
+- Fill-in-the-blank — a sentence with a blank for the student to complete.
+
+LETTING THE STUDENT CUSTOMISE THE QUIZ:
+The student can change how the quiz is run at any point, even mid-quiz, even after several questions have already been asked. For example: "I want 10 questions", "give me theory and fill-in-the-blank too", "just multiple choice from now on".
+
+When this happens:
+1. Acknowledge it in one short sentence — don't redo questions already asked.
+2. If they gave a total count, that becomes the target for a NEW set starting from the next question.
+3. If they gave format preferences, spread those formats roughly evenly across the set rather than clustering one format together (e.g. for 10 questions across 3 formats, rotate through them).
+4. If they only mention count or only mention format, keep whatever was already in place for the part they didn't mention.
+5. State the plan in one line, then continue exactly as before — still ONE question at a time, still waiting for their answer before the next. e.g. "Got it — 10 questions, mixing multiple choice, theory, and fill-in-the-blank. Question 1 of 10:"
+6. Number each question against that target ("Question 2 of 10", "Question 3 of 10"...) so the student can track progress.
+7. Once the target is reached, tell the student the set is complete, give a quick summary of how they did, and ask if they'd like another set — carrying forward the same preferences unless they say otherwise.`;
 }
+
+function topicsSummaryPrompt(courseName: string) {
+  return `You are summarizing what a student has actually been taught in their ${courseName} tutoring sessions, based on the tutor's own messages below (pulled from their course lessons and assignment help sessions).
+
+Extract a compact list of the specific topics and subtopics that have genuinely been taught or worked through — this is a record of what happened, not a course outline or plan.
+
+Rules:
+- Output ONLY a short bullet list. No preamble, no commentary, no closing remarks.
+- Group related subtopics under their main topic where that makes sense.
+- Keep each bullet short — a few words, not full sentences.
+- If the messages reflect very little teaching content, return a short list reflecting only that.`;
+}
+
 
 function getSystemPrompt(
   mode: "course" | "assignment" | "quiz",
   courseName: string,
   scheme: string | null,
-  schemeStatus: SchemeStatus
+  schemeStatus: SchemeStatus,
+  quizTopics: string | null
 ): string {
   if (mode === "course" && schemeStatus === "setup") return setupPrompt(courseName);
   const s = scheme ?? "";
   if (mode === "course") return teachingPrompt(courseName, s);
   if (mode === "assignment") return assignmentPrompt(courseName, s);
-  return quizPrompt(courseName, s);
+  return quizPrompt(courseName, quizTopics ?? "");
 }
 
 // ── Mode config ────────────────────────────────────────────
@@ -187,6 +221,8 @@ export default function CourseChat({ course, mode, userId }: Props) {
   const [showApprove, setShowApprove]       = useState(false);
   const [savingScheme, setSavingScheme]     = useState(false);
   const [copiedId, setCopiedId]             = useState<string | null>(null);
+  const [quizTopics, setQuizTopics]         = useState<string | null>(null);
+  const [topicsStatus, setTopicsStatus]     = useState<TopicsStatus>("idle");
 
   const bottomRef    = useRef<HTMLDivElement>(null);
   const inputRef     = useRef<HTMLTextAreaElement>(null);
@@ -251,6 +287,131 @@ export default function CourseChat({ course, mode, userId }: Props) {
     [supabase, userId, course.id, mode]
   );
 
+  // ── Sync quiz topics: cached summary of what's actually been taught ──
+  // Only re-summarizes when there are course/assignment messages newer than
+  // the cached summary. Otherwise reuses the cached `topics_covered` value
+  // on the schemes row, so quiz loads stay cheap.
+  const syncQuizTopics = useCallback(async () => {
+    setTopicsStatus("loading");
+
+    // Latest message timestamp across course + assignment chats for this course
+    const { data: latest } = await supabase
+      .from("chat_messages")
+      .select("created_at")
+      .eq("course_id", course.id)
+      .eq("user_id", userId)
+      .in("mode", ["course", "assignment"])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const latestMessageAt = latest?.created_at ?? null;
+
+    // Nothing studied yet — nothing to quiz on
+    if (!latestMessageAt) {
+      setQuizTopics(null);
+      setTopicsStatus("ready");
+      return;
+    }
+
+    // Check the cached summary on the schemes row
+    const { data: schemeRow } = await supabase
+      .from("schemes")
+      .select("content, topics_covered, topics_updated_at")
+      .eq("course_id", course.id)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    const cacheIsFresh =
+      !!schemeRow?.topics_updated_at &&
+      new Date(schemeRow.topics_updated_at).getTime() >= new Date(latestMessageAt).getTime();
+
+    if (cacheIsFresh && schemeRow?.topics_covered) {
+      setQuizTopics(schemeRow.topics_covered);
+      setTopicsStatus("ready");
+      return;
+    }
+
+    // Stale (or no cache yet) — regenerate from the tutor's own messages
+    const { data: taughtMessages } = await supabase
+      .from("chat_messages")
+      .select("content, mode")
+      .eq("course_id", course.id)
+      .eq("user_id", userId)
+      .eq("role", "assistant")
+      .in("mode", ["course", "assignment"])
+      .order("created_at", { ascending: true });
+
+    if (!taughtMessages || taughtMessages.length === 0) {
+      setQuizTopics(null);
+      setTopicsStatus("ready");
+      return;
+    }
+
+    const transcript = taughtMessages.map((m) => `[${m.mode}] ${m.content}`).join("\n\n");
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [{ role: "user", content: transcript }],
+          systemPrompt: topicsSummaryPrompt(course.name),
+        }),
+      });
+
+      if (!res.ok || !res.body) throw new Error("Summary request failed");
+
+      const reader  = res.body.getReader();
+      const decoder = new TextDecoder();
+      let summary   = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const lines = decoder.decode(value, { stream: true }).split("\n");
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const data = line.slice(6);
+          if (data === "[DONE]") continue;
+          try {
+            const delta = JSON.parse(data).choices?.[0]?.delta?.content;
+            if (delta) summary += delta;
+          } catch { /* skip malformed chunks */ }
+        }
+      }
+
+      // `content` is NOT NULL on this table. Postgres validates that on the
+      // candidate insert row even when ON CONFLICT will turn it into an
+      // update — so it has to be sent on every upsert, not just when no row
+      // exists yet. We pass back the existing value (a no-op for the
+      // update), or an empty placeholder if there's no row to read from.
+      const { error: upsertError } = await supabase
+        .from("schemes")
+        .upsert(
+          {
+            user_id: userId,
+            course_id: course.id,
+            content: schemeRow?.content ?? "",
+            topics_covered: summary,
+            topics_updated_at: latestMessageAt,
+          },
+          { onConflict: "user_id,course_id" }
+        );
+
+      if (upsertError) {
+        console.error("Failed to cache quiz topics:", upsertError);
+      }
+
+      setQuizTopics(summary);
+    } catch {
+      // Fall back to whatever was cached before, even if stale, rather than blocking the quiz
+      setQuizTopics(schemeRow?.topics_covered ?? null);
+    } finally {
+      setTopicsStatus("ready");
+    }
+  }, [supabase, course.id, course.name, userId]);
+
   // ── Load scheme + history ──────────────────────────────────
   useEffect(() => {
     didInitiate.current = false;
@@ -260,6 +421,8 @@ export default function CourseChat({ course, mode, userId }: Props) {
       setMessages([]);
       setShowApprove(false);
       setSchemeStatus("loading");
+      setQuizTopics(null);
+      setTopicsStatus("idle");
 
       // Check for approved scheme
       const { data: schemeData } = await supabase
@@ -292,6 +455,12 @@ export default function CourseChat({ course, mode, userId }: Props) {
 
     load();
   }, [course.id, mode, userId, supabase]);
+
+  // ── Trigger quiz topics sync once per course/mode load ─────
+  useEffect(() => {
+    if (mode !== "quiz" || loadingHistory || topicsStatus !== "idle") return;
+    syncQuizTopics();
+  }, [mode, loadingHistory, topicsStatus, syncQuizTopics]);
 
   // ── Auto-initiate: AI speaks first on a fresh course ──────
   useEffect(() => {
@@ -368,7 +537,6 @@ export default function CourseChat({ course, mode, userId }: Props) {
     setTimeout(() => setCopiedId(null), 2000);
   }, []);
 
- 
   // ── Approve scheme ─────────────────────────────────────────
   const handleApproveScheme = async () => {
     const schemeMsg = [...messages]
@@ -383,12 +551,15 @@ export default function CourseChat({ course, mode, userId }: Props) {
 
     setSavingScheme(true);
 
-    const { error } = await supabase.from("schemes").upsert({
-      user_id: userId,
-      course_id: course.id,
-      content: schemeMsg.content,
-      approved: true,
-    });
+    const { error } = await supabase.from("schemes").upsert(
+      {
+        user_id: userId,
+        course_id: course.id,
+        content: schemeMsg.content,
+        approved: true,
+      },
+      { onConflict: "user_id,course_id" }
+    );
 
     if (!error) {
       setScheme(schemeMsg.content);
@@ -435,6 +606,7 @@ export default function CourseChat({ course, mode, userId }: Props) {
     e?.preventDefault();
     const trimmed = input.trim();
     if (!trimmed || loading) return;
+    if (mode === "quiz" && topicsStatus !== "ready") return;
 
     setInput("");
     setLoading(true);
@@ -455,7 +627,7 @@ export default function CourseChat({ course, mode, userId }: Props) {
     setMessages((prev) => [...prev, { id: tmpAiId, role: "assistant", content: "" }]);
 
     try {
-      const systemPrompt = getSystemPrompt(mode, course.name, scheme, schemeStatus);
+      const systemPrompt = getSystemPrompt(mode, course.name, scheme, schemeStatus, quizTopics);
       const fullText = await streamResponse(history, systemPrompt, tmpAiId);
 
       saveMessage("assistant", fullText).then((saved) => {
@@ -498,6 +670,8 @@ export default function CourseChat({ course, mode, userId }: Props) {
             <p className="text-xs text-gray-400">
               {schemeStatus === "setup" && mode === "course"
                 ? "Setting up your scheme of work"
+                : mode === "quiz" && topicsStatus !== "ready"
+                ? "Reviewing what you've covered"
                 : MODE_LABEL[mode]}
             </p>
           </div>
@@ -646,9 +820,11 @@ export default function CourseChat({ course, mode, userId }: Props) {
               placeholder={
                 schemeStatus === "setup" && mode === "course"
                   ? "Reply to set up your scheme of work..."
+                  : mode === "quiz" && topicsStatus !== "ready"
+                  ? "Reviewing what you've covered..."
                   : MODE_PLACEHOLDER[mode](course.name)
               }
-              disabled={loading}
+              disabled={loading || (mode === "quiz" && topicsStatus !== "ready")}
               rows={1}
               className="w-full px-4 py-3.5 pr-12 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent placeholder:text-gray-400 disabled:opacity-60 resize-none overflow-hidden"
               style={{ minHeight: "52px", maxHeight: "160px" }}
@@ -660,7 +836,7 @@ export default function CourseChat({ course, mode, userId }: Props) {
             />
             <button
               type="submit"
-              disabled={!input.trim() || loading}
+              disabled={!input.trim() || loading || (mode === "quiz" && topicsStatus !== "ready")}
               className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

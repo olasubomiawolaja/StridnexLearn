@@ -14,7 +14,7 @@ const TESTIMONIALS = [
     name: "Amara Osei",
     role: "WAEC Student, Lagos",
     rating: ["star", "star", "star", "star", "star"],
-    text: "I was failing physics before StridenexLearn. The AI doesn't just give me answers — it actually makes me think. My grades went from D to B+ in two months.",
+    text: "I was failing physics before StridnexLearn. The AI doesn't just give me answers — it actually makes me think. My grades went from D to B+ in two months.",
     image:
       "https://lh3.googleusercontent.com/aida-public/AB6AXuDYpZ4DllhVI0LjhI7xskGOc1UW-mhhBuOUsdTb5sPJpuQzQOZn7m2goKdS2fMCKkmdrUTphE2xrsUSPu4VLxyBJ2WByngWVBzo8PWdtgn8Ya6C63N4xedmVmZDFS40DxM3rQra07XVmREAwUoQjJdP5mQIErbS8nDKfHef6oF9AOfd1O6dLkIttN5SeTJdNNLvnDBqTkbJW8f6Q5_Sy4IkT26waKsrQzuSXS-Dp1Sd2kydIjspFEx2aNiNyPKqPb4M8Yp3bs1gfugR",
   },
@@ -30,7 +30,7 @@ const TESTIMONIALS = [
     name: "Fatima Al-Hassan",
     role: "High School Teacher, Kano",
     rating: ["star", "star", "star", "star", "star"],
-    text: "I recommend StridenexLearn to all my students as a supplement. It teaches the way I wish I had time to — patiently, adaptively, and with real depth.",
+    text: "I recommend StridnexLearn to all my students as a supplement. It teaches the way I wish I had time to — patiently, adaptively, and with real depth.",
     image:
       "https://lh3.googleusercontent.com/aida-public/AB6AXuB-ub9PRGA9ZWR925jWIeyGwzckNGA_KwXc4BRSlKXZHAgtW46LjeYIoUmUVTEtxB1RxnL9HY4cG9_QnHVr5_T_oYY0qhMgPERCa9U3OjJUJx2VWHoOvwIlxJPlIqXzT0iHNSSqkwqu__8vL7pEPF_simeEwpNSrO2yTysvKkTwAfhCS1-DeADeHcYjqZXE-bbDtrRMX7NxSz65SHeVtCW4wJ8aKXzeW61hyWzZe0zqpQQM3PeQLkSPZNQ3GwEJk3xXpR5PcwDHdzuL",
   },
@@ -40,7 +40,7 @@ const FEATURES = [
   {
     icon: "route",
     title: "Adaptive Intelligence",
-    text: "StridenextLearn tracks your performance and adjusts explanations - more detailed when struggling, concise when you've got it.",
+    text: "StridnexLearn tracks your performance and adjusts explanations - more detailed when struggling, concise when you've got it.",
   },
   {
     icon: "analytics",
@@ -50,7 +50,7 @@ const FEATURES = [
   {
     icon: "quiz",
     title: "Auto-Generated Quizzes",
-    text: "StridenextLearn reads your history to create relevant quizzes automatically - testing what you've actually learned.",
+    text: "StridnexLearn reads your history to create relevant quizzes automatically - testing what you've actually learned.",
   },
   {
     icon: "account_tree",
@@ -92,7 +92,7 @@ const TYPING_PHRASES = [
   "Precision AI Feedback",
   "Works With Any Course",
   "Frictionless Mastery",
-  "StridenextLearn",
+  "StridnexLearn",
 ];
 
 function MaterialIcon({
@@ -267,8 +267,8 @@ export default function LandingPage() {
               }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img alt="StridenextLearn Logo" className="h-14 w-auto object-contain" src={LOGO_URL} />
-              <span>StridenextLearn</span>
+              <img alt="StridnexLearn Logo" className="h-14 w-auto object-contain" src={LOGO_URL} />
+              <span>StridnexLearn</span>
             </a>
 
             <div className="hidden items-center gap-8 md:flex">
@@ -379,11 +379,11 @@ export default function LandingPage() {
                       <div className="h-3 w-3 rounded-full bg-red-400" />
                       <div className="h-3 w-3 rounded-full bg-yellow-400" />
                       <div className="h-3 w-3 rounded-full bg-green-400" />
-                      <div className="ml-4 font-mono text-xs tracking-wider text-white/40">StridenextLearn</div>
+                      <div className="ml-4 font-mono text-xs tracking-wider text-white/40">StridnexLearn</div>
                     </div>
                     <div className="flex flex-grow items-center justify-center text-center">
                       <div className="relative">
-                        <span className="font-mono text-3xl leading-relaxed text-white md:text-4xl lg:text-5xl">{typedText || "StridenextLearn"}</span>
+                        <span className="font-mono text-3xl leading-relaxed text-white md:text-4xl lg:text-5xl">{typedText || "StridnexLearn"}</span>
                         <span className="cursor-blink ml-2 inline-block h-10 w-3 align-middle bg-[#4e45d5] md:h-12" />
                       </div>
                     </div>
@@ -401,7 +401,7 @@ export default function LandingPage() {
                   <h2 className="mb-8 font-serif text-5xl font-bold leading-tight text-[#070235] md:text-6xl">The AI Tutor that thinks like a teacher</h2>
                   <div className="mb-12 space-y-7 text-xl leading-9 text-[#47464f]">
                     <p>
-                      Most AI tools just answer your questions. StridenextLearn is built differently - it starts by assuming you are a beginner and builds
+                      Most AI tools just answer your questions. StridnexLearn is built differently - it starts by assuming you are a beginner and builds
                       up your understanding layer by layer through guided questions and explanations.
                     </p>
                     <p>
@@ -436,7 +436,7 @@ export default function LandingPage() {
 
           <section className="flex min-h-screen scroll-mt-20 flex-col justify-center overflow-hidden bg-[#f2f4f6] py-24 md:py-28" id="features">
             <div className="mx-auto mb-20 max-w-[1360px] px-4 text-center md:px-12">
-              <h2 className="mb-5 font-serif text-5xl font-bold uppercase leading-tight text-[#070235] md:text-6xl">WHAT STRIDENEXTLEARN DOES</h2>
+              <h2 className="mb-5 font-serif text-5xl font-bold uppercase leading-tight text-[#070235] md:text-6xl">WHAT STRIDNEXLEARN DOES</h2>
               <p className="mx-auto max-w-3xl text-xl leading-8 text-[#47464f]">Everything you need to master any subject</p>
             </div>
             <div className="marquee-mask relative w-full">
@@ -530,7 +530,7 @@ export default function LandingPage() {
             <div className="relative z-10 mx-auto max-w-[1360px] px-4 text-center md:px-12">
               <h2 className="mb-7 font-serif text-5xl font-bold leading-tight text-white md:text-7xl">Ready to accelerate your learning?</h2>
               <p className="mx-auto mb-12 max-w-3xl text-xl leading-9 text-[#c4c1fb]/80">
-                Join 50,000+ learners who are using StridenextLearn to master complex skills in half the time. Your first module is on us.
+                Join 50,000+ learners who are using StridnexLearn to master complex skills in half the time. Your first module is on us.
               </p>
               <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
                 <Link
@@ -554,8 +554,8 @@ export default function LandingPage() {
                 <div className="mb-6 font-serif text-2xl font-bold text-[#070235]">
                   <div className="flex items-center gap-3">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img alt="StridenextLearn Mark" className="h-12 w-auto object-contain" src={LOGO_URL} />
-                    <span>StridenextLearn</span>
+                    <img alt="StridnexLearn Mark" className="h-12 w-auto object-contain" src={LOGO_URL} />
+                    <span>StridnexLearn</span>
                   </div>
                 </div>
                 <p className="mb-8 max-w-xs text-base leading-6 text-[#47464f]">
@@ -598,12 +598,12 @@ export default function LandingPage() {
             </div>
 
             <div className="border-t border-[rgba(200,197,208,0.3)] pt-12 text-center">
-              <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#47464f]">ALL RIGHTS RESERVED 2026 - STRIDENEXTLEARN</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#47464f]">ALL RIGHTS RESERVED 2026 - STRIDNEXLEARN</p>
             </div>
           </div>
 
           <div className="pointer-events-none absolute bottom-[-10%] left-0 flex w-full select-none justify-center overflow-hidden opacity-[0.05]">
-            <span className="whitespace-nowrap text-[24vw] font-bold tracking-tight text-[#070235]">StridenextLearn</span>
+            <span className="whitespace-nowrap text-[24vw] font-bold tracking-tight text-[#070235]">StridnexLearn</span>
           </div>
         </footer>
       </div>

@@ -412,7 +412,7 @@ export default function Sidebar({
               <div className="w-6 h-6 rounded-md bg-[#070235] flex items-center justify-center text-[9px] font-bold text-white shrink-0">
                 SL
               </div>
-              <span className="font-semibold text-sm text-[#070235]">StridenexLearn</span>
+              <span className="font-semibold text-sm text-[#070235]">StridnexLearn</span>
             </div>
             <button
               onClick={onToggle}

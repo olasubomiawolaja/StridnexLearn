@@ -8,7 +8,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "StridenexLearn — AI-Powered Adaptive Tutoring",
+  title: "StridnexLearn — AI-Powered Adaptive Tutoring",
   description:
     "An AI tutor that teaches, challenges, and adapts to you. Master any subject with Socratic learning.",
 };
