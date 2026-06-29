@@ -93,7 +93,9 @@ export default function ChatArea({ greeting, firstName }: ChatAreaProps) {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: history }),
+        // No course context on the home screen — the server uses a general
+        // study-assistant prompt for this intent.
+        body: JSON.stringify({ messages: history, intent: "general" }),
       });
 
       if (!response.ok || !response.body) throw new Error("Request failed");
