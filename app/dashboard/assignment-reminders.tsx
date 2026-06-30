@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { createClient } from "@/lib/supabase";
 import {
   createReminder,
@@ -45,18 +45,29 @@ export default function AssignmentReminders({ courseId, userId, draftText }: Pro
   const [expanded, setExpanded]   = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [title, setTitle]         = useState("");
-  const [remindAt, setRemindAt]   = useState(defaultRemindAt());
+  const [remindAt, setRemindAt]   = useState(() => defaultRemindAt());
   const [saving, setSaving]       = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  // "Now" captured into state when reminders load, so the overdue check below
+  // stays pure during render (no Date.now() call while rendering).
+  const [now, setNow]             = useState(0);
 
-  const load = useCallback(async () => {
-    const rows = await listReminders(supabase, userId, courseId);
-    setReminders(rows);
-  }, [supabase, userId, courseId]);
-
+  // Load this course's reminders on mount / when the course changes. The
+  // setState happens after the await (async), and a flag guards against a
+  // late response landing after the component switched courses.
   useEffect(() => {
-    load();
-  }, [load]);
+    let active = true;
+    (async () => {
+      const rows = await listReminders(supabase, userId, courseId);
+      if (active) {
+        setReminders(rows);
+        setNow(Date.now());
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [supabase, userId, courseId]);
 
   const pending = reminders.filter((r) => r.status === "pending");
 
@@ -144,7 +155,7 @@ export default function AssignmentReminders({ courseId, userId, draftText }: Pro
       {expanded && reminders.length > 0 && (
         <ul className="mt-2 space-y-1.5">
           {reminders.map((r) => {
-            const overdue = r.status === "pending" && new Date(r.remindAt).getTime() < Date.now();
+            const overdue = r.status === "pending" && now > 0 && new Date(r.remindAt).getTime() < now;
             return (
               <li
                 key={r.id}
