@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
+import AssignmentReminders from "./assignment-reminders";
 import type { Course } from "./sidebar";
 
 // ── Types ──────────────────────────────────────────────────
@@ -61,8 +62,14 @@ export default function CourseChat({ course, mode, userId }: Props) {
   // read by the server; the client only tracks whether that sync has finished.
   const [topicsStatus, setTopicsStatus]     = useState<TopicsStatus>("idle");
 
+  // Assignment uploads: students can attach a file (text / PDF / photo) and the
+  // server extracts its text into the input for review before sending.
+  const [uploading, setUploading]   = useState(false);
+  const [attachError, setAttachError] = useState<string | null>(null);
+
   const bottomRef    = useRef<HTMLDivElement>(null);
   const inputRef     = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const didInitiate  = useRef(false);
   const supabase     = useMemo(() => createClient(), []);
 
@@ -465,6 +472,34 @@ export default function CourseChat({ course, mode, userId }: Props) {
     setSavingScheme(false);
   };
 
+  // ── Attach a file ──────────────────────────────────────────
+  // Send the picked file to /api/extract, which returns its text; drop that
+  // text into the input so the student can review and send it like anything
+  // they'd typed. Append to existing input rather than clobbering it.
+  const handleFile = useCallback(
+    async (file: File) => {
+      setAttachError(null);
+      setUploading(true);
+      try {
+        const fd = new FormData();
+        fd.append("file", file);
+        const res = await fetch("/api/extract", { method: "POST", body: fd });
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data?.text) {
+          setAttachError(data?.error ?? "Couldn't read that file.");
+          return;
+        }
+        setInput((prev) => (prev.trim() ? `${prev.trim()}\n\n${data.text}` : data.text));
+        inputRef.current?.focus();
+      } catch {
+        setAttachError("Upload failed. Please try again.");
+      } finally {
+        setUploading(false);
+      }
+    },
+    []
+  );
+
   // ── Send message ───────────────────────────────────────────
   const handleSend = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -544,6 +579,10 @@ export default function CourseChat({ course, mode, userId }: Props) {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 pb-6 pt-24">
         <div className="max-w-2xl mx-auto space-y-4">
+
+          {mode === "assignment" && !loadingHistory && (
+            <AssignmentReminders courseId={course.id} userId={userId} draftText={input} />
+          )}
 
           {loadingHistory || schemeStatus === "loading" ? (
             <div className="space-y-4">
@@ -674,7 +713,47 @@ export default function CourseChat({ course, mode, userId }: Props) {
       {/* Input */}
       <div className="border-t border-gray-100 px-4 py-4 shrink-0">
         <form onSubmit={handleSend} className="max-w-2xl mx-auto">
+          {attachError && (
+            <div className="mb-2 flex items-center justify-between gap-2 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-600">
+              <span>{attachError}</span>
+              <button type="button" onClick={() => setAttachError(null)} className="text-red-400 hover:text-red-600">✕</button>
+            </div>
+          )}
           <div className="relative">
+            {/* Attach a file (assignment mode) */}
+            {mode === "assignment" && (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".txt,.md,.markdown,.csv,.tsv,.rtf,.json,.log,.pdf,image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) handleFile(f);
+                    e.target.value = "";
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={loading || uploading}
+                  title="Attach an assignment (PDF, photo, or text file)"
+                  className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  {uploading ? (
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                    </svg>
+                  )}
+                </button>
+              </>
+            )}
             <textarea
               ref={inputRef}
               value={input}
@@ -685,11 +764,13 @@ export default function CourseChat({ course, mode, userId }: Props) {
                   ? "Reply to set up your scheme of work..."
                   : mode === "quiz" && topicsStatus !== "ready"
                   ? "Reviewing what you've covered..."
+                  : uploading
+                  ? "Reading your file..."
                   : MODE_PLACEHOLDER[mode](course.name)
               }
               disabled={loading || (mode === "quiz" && topicsStatus !== "ready")}
               rows={1}
-              className="w-full px-4 py-3.5 pr-12 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent placeholder:text-gray-400 disabled:opacity-60 resize-none overflow-hidden"
+              className={`w-full py-3.5 pr-12 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent placeholder:text-gray-400 disabled:opacity-60 resize-none overflow-hidden ${mode === "assignment" ? "pl-12" : "pl-4"}`}
               style={{ minHeight: "52px", maxHeight: "160px" }}
               onInput={(e) => {
                 const t = e.currentTarget;
@@ -708,7 +789,9 @@ export default function CourseChat({ course, mode, userId }: Props) {
             </button>
           </div>
           <p className="text-xs text-gray-300 mt-1.5 text-center">
-            Enter to send · Shift+Enter for new line
+            {mode === "assignment"
+              ? "Enter to send · Shift+Enter for new line · 📎 to attach a file"
+              : "Enter to send · Shift+Enter for new line"}
           </p>
         </form>
       </div>
